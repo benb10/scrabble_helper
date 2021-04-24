@@ -245,8 +245,9 @@ def test_get_row_options():
     assert sorted(x) == [["m", "e", "t"], ["n", "e", "t"]]
 
 
+
 def test_gen_char_groups():
-    assert list(gen_char_groups([" ", " ", "a", " ", "b", "c"])) == [["a"], ["b", "c"]]
+    assert list(gen_char_groups([" ", " ", "a", " ", "b", "c"])) == [[(2, "a")], [(4, "b"), (5, "c")]]
 
 
 def test_gen_words():
@@ -351,6 +352,29 @@ def test_get_new_word_score():
 
     assert get_new_word_score(b, nb) == 4
 
+
+def test_get_new_word_score_bonus_config():
+
+    # fmt: off
+    b = [
+        [" ", " ", "n"],
+        [" ", " ", "o"],
+        [" ", " ", "d"],
+    ]
+    nb = [
+        ["p", "e", "n"],
+        [" ", " ", "o"],
+        [" ", " ", "d"],
+    ]
+    bonus_config = [
+        ["T", "d", "t"],
+        [" ", " ", " "],
+        [" ", "D", " "],
+    ]
+    # fmt: on
+
+    # 2*e = 2 + 3 for pen = 5 * triple word = 15
+    assert get_new_word_score(b, nb, bonus_config=bonus_config) == 15
 
 def test_best_options():
     b = [[" ", " ", " "], [" ", " ", " "], ["c", "a", "t"]]

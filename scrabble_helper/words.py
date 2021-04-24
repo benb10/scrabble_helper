@@ -5,6 +5,7 @@ from english_words import english_words_lower_alpha_set
 from typing import List, Set, Optional, Any
 from collections import defaultdict
 from functools import lru_cache
+import os
 
 # There seems to be many short words in the library
 # that aren't legitimate scrabble words.
@@ -179,6 +180,10 @@ def get_english_words(max_len=None):
     return words
 
 
+def word_sources_dir():
+    return os.path.join(os.path.dirname(__file__), "word_sources")
+
+
 @lru_cache(maxsize=1024)
 def get_scrabble_words(max_len=None):
     """This reads in a word list which has 279,496 scrabble words.
@@ -186,10 +191,11 @@ def get_scrabble_words(max_len=None):
     https://boardgames.stackexchange.com/questions/38366/latest-collins-scrabble-words-list-in-text-file
     https://drive.google.com/file/d/1oGDf1wjWp5RF_X9C7HoedhIWMh5uJs8s/view
     """
-    word_file = "word_sources/collins_scrabble_words_2019.txt"
     # So we know when the function actually runs
     # because it can't find anything in the lru_cache
     print(f"Running get_scrabble_words with max_len {max_len}")
+
+    word_file = os.path.join(word_sources_dir(), "collins_scrabble_words_2019.txt")
     with open(word_file, "r") as f:
         text = f.read()
 

@@ -143,24 +143,40 @@ def gen_char_groups(sequence, separator=" "):
     https://stackoverflow.com/questions/54372218/how-to-split-a-list-into-sublists-based-on-a-separator-similar-to-str-split
     """
     chunk = []
-    for val in sequence:
+    for i, val in enumerate(sequence):
         if val == separator and chunk:
             yield chunk
             chunk = []
             continue
         if val != separator:
-            chunk.append(val)
+            chunk.append((i, val))
 
     yield chunk
 
 
-def gen_words(board):
-    lines = chain(gen_rows(board), gen_cols(board))
-    all_char_groups = chain.from_iterable(gen_char_groups(line) for line in lines)
+def gen_word_groups(board, include_indices=False):
+    for row_num, row in enumerate(gen_rows(board)):
+        char_groups = gen_char_groups(row)
+        for char_group in char_groups:
+            if include_indices:
+                yield [((row_num, i), char) for (i, char) in char_group]
+            else:
+                yield [char for (i, char) in char_group]
 
-    yield from (
-        "".join(char_group) for char_group in all_char_groups if len(char_group) > 1
-    )
+    for col_num, col in enumerate(gen_cols(board)):
+        char_groups = gen_char_groups(col)
+        for char_group in char_groups:
+            if include_indices:
+                yield [((i, col_num), char) for (i, char) in char_group]
+            else:
+                yield [char for (i, char) in char_group]
+
+
+
+def gen_words(board, include_indices=False):
+    for word_group in gen_word_groups(board, include_indices=False):
+        yield "".join(word_group)
+
 
 
 def board_is_valid(
@@ -357,16 +373,95 @@ def get_score(chars):
     return score
 
 
-def get_new_word_score(board, new_board):
-    changed_locations = get_changed_locations(board, new_board)
 
-    added_tiles = [new_board[r][c] for r, c in changed_locations]
+def get_word_score(word_group, pos_to_bonus, changed_locations):
+    """Return the score and a string explaining how the score was calculated.
 
-    # This isn't a perfect method
-    # We are not counting the score on existing tiles
-    # We are not counting any double/triple letter/word bonuses
-    score = get_score(added_tiles)
-    return score
+    word_group is a list of (position, tile) tuples
+
+    eg.
+    [((0, 0), "d"), ((0, 1), "o"), ((0, 2), "g")]
+
+    the bonus values mean:
+    "d": double letter score
+    "D": double word score
+    "t": triple letter socre
+    "T": triple word score
+    " ": no bonus
+    """
+    justification = []
+    total_score = 0
+    # First count the word score, including any letter bonuses:
+    for pos, tile in word_group:
+        if pos not in changed_locations:
+            continue
+
+        score = get_score(tile)
+        bonus = pos_to_bonus.get(pos)
+        if bonus == "d":
+            justification.append(f"{tile} {score}*2")
+            score *= 2
+        elif bonus == "t":
+            score *= 3
+            justification.append(f"{tile} {score}*3")
+        else:
+            justification.append(f"{tile} {score}")
+        total_score += score
+
+    # Now apply any double/triple word scores
+    all_bonuses = {pos_to_bonus[pos] for pos in changed_locations if pos in pos_to_bonus}
+    for bonus in all_bonuses:
+        if bonus == "D":
+            justification.append("double word!!")
+            total_score *= 2
+        elif bonus == "T":
+            total_score *= 3
+            justification.append("triple word!!!")
+
+    justification_str = " + ".join(justification) + f" = {total_score}"
+    return total_score, justification_str
+
+
+def get_new_word_score(board, new_board, bonus_config=None):
+    if bonus_config:
+        pos_to_bonus = {
+            (row_num, col_num): bonus
+            for row_num, row in enumerate(bonus_config)
+            for col_num, bonus in enumerate(row)
+            if bonus != " "
+        }
+    else:
+        pos_to_bonus = {}
+    changed_locations = set(get_changed_locations(board, new_board))
+
+    full_score = 0
+
+    for word_group in gen_word_groups(new_board, include_indices=True):
+        tile_positions = {pos for pos, tile in word_group}
+        if not changed_locations.intersection(tile_positions):
+            # This word does not invole any new tiles
+            continue
+
+        word = "".join(char for pos, char in word_group)
+        if len(word) == 1:
+            # not a word
+            continue
+
+        score, justification_string = get_word_score(word_group, pos_to_bonus, changed_locations)
+
+        print(f"{word}: {justification_string}")
+        full_score += score
+
+    BONUS_TILE_THRESHOLD = 7
+    BONUS_AMOUNT = 50
+    if len(changed_locations) >= BONUS_TILE_THRESHOLD:
+        print("!!!!!!!!!!!!!!!!!!!!!!")
+        print(f"Used over {BONUS_TILE_THRESHOLD} tiles.  {BONUS_AMOUNT} point bonus!!!!!!!!!!!!")
+        print("!!!!!!!!!!!!!!!!!!!!!!")
+        full_score += BONUS_AMOUNT
+
+    return full_score
+
 
 
 def best_options(board, tiles, n=None, get_words_fn=DEFAULT_GET_WORD_FN):
