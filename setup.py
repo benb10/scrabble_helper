@@ -6,6 +6,10 @@ setup(
     version="0.1",
     install_requires=[
         "english_words>=1.0.3,<2",
+        # "tqdm>=4.60.0,<5"
     ],
-    entry_points={}  # TODO.  Something like "console_scripts": ["scrabble = main:run"] ?
+    entry_points={"console_scripts": [
+        "scrabble = scrabble_helper.main:main",
+        "simulate = scrabble_helper.simulator:simulate",
+    ]},
 )
