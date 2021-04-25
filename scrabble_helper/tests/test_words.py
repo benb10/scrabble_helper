@@ -21,6 +21,7 @@ def test_get_english_words():
     # ballpark:
     assert 20_000 < len(x) < 30_000
 
+
 def test_get_english_words_max_len():
     words_8 = get_english_words(max_len=8)
     assert max(len(w) for w in words_8) == 8

@@ -1,7 +1,9 @@
 import json
 import os
+from copy import deepcopy
 
-from scrabble_helper.engine import best_options
+from scrabble_helper.engine import best_options, get_tiles_played
+from scrabble_helper.display import pp2
 
 
 def board_files_dir():
@@ -58,42 +60,38 @@ def advise_from_json(board_name, num_options_to_provide=30):
         raise ValueError(f"tile_rack is empty: {tile_rack}")
 
     options = best_options(board, tile_rack, n=num_options_to_provide)
-
-    import ipdb
-
-    ipdb.set_trace()
-
     options.reverse()  # display best at the bottom
 
     rank_to_option = {len(options) - i: option for i, option in enumerate(options)}
 
     for rank in sorted(rank_to_option, reverse=True):
         option = rank_to_option[rank]
-        new_board, score = option
         print("")
         print("==========================================================")
-        print(f"Option number {rank}.  {score} points.")
-        pp2(board, new_board)
+        print(f"Option number {rank}.  {option.score} points.")
+        pp2(board, option.new_board)
 
     print(f"Tile rack: {sorted(tile_rack)}")
     print("")
 
-    choice = input(f"Enter number of option, or press enter: ")
+    choice = input("Enter number of option, or press enter: ")
 
     if choice:
         choice = int(choice)
         option = rank_to_option[choice]
         # clobber the existing json with the new output
-        new_board, _ = option
-        tiles_played = get_tiles_played(board, new_board)
+        tiles_played = get_tiles_played(board, option.new_board)
         new_tile_rack = deepcopy(tile_rack)
         for tile in tiles_played:
             new_tile_rack.remove(tile)
         new_tile_rack.sort()
-        new_tiles = input(f"Please enter new tiles added to rack: ")
+        new_tiles = input("Please enter new tiles added to rack: ")
         new_tile_rack.extend(list(new_tiles))
-        new_data = {"board": new_board, "tile_rack": new_tile_rack}
+        new_data = {"board": option.new_board, "tile_rack": new_tile_rack}
         write_json(json_path, new_data)
         print(f"Finished updating {json_path}")
     else:
         print(f"Not making any changes to {json_path}")
+
+
+advise_from_json("test")

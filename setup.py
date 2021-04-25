@@ -8,8 +8,10 @@ setup(
         "english_words>=1.0.3,<2",
         # "tqdm>=4.60.0,<5"
     ],
-    entry_points={"console_scripts": [
-        "scrabble = scrabble_helper.main:main",
-        "simulate = scrabble_helper.simulator:simulate",
-    ]},
+    entry_points={
+        "console_scripts": [
+            "scrabble = scrabble_helper.main:main",
+            "simulate = scrabble_helper.simulator:simulate",
+        ]
+    },
 )

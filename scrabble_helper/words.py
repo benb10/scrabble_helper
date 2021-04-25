@@ -211,7 +211,9 @@ def get_scrabble_words(max_len=None):
     print(f"Produced {len(words)} words")
     return words
 
+
 # helper functions:
+
 
 def divide_by_len(words):
     """Helper function to check word lists."""
@@ -229,6 +231,7 @@ def get_missing_letter_stats(words, missing_chars=["e", "t", "a", "o", "i", "n"]
     for missing_char in missing_chars:
         sub_len = len([w for w in words if missing_char not in w])
         print(f"Words without {missing_char}: {sub_len}")
+
 
 # get_missing_letter_stats(get_scrabble_words(max_len=8))
 # import ipdb; ipdb.set_trace()

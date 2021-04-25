@@ -74,7 +74,7 @@ def test_performance_benchmarks():
         "get_english_words": (
             get_english_words,
             Benchmarks(
-                highest_score_range=Range(min=10, max=10),
+                highest_score_range=Range(min=12, max=14),
                 num_options_range=Range(min=200, max=400),
                 runtime_range=Range(min=0.5, max=5),
             ),
@@ -82,9 +82,9 @@ def test_performance_benchmarks():
         "get_scrabble_words": (
             get_scrabble_words,
             Benchmarks(
-                highest_score_range=Range(min=11, max=11),
+                highest_score_range=Range(min=61, max=70),
                 num_options_range=Range(min=500, max=1000),
-                runtime_range=Range(min=20, max=30),
+                runtime_range=Range(min=20, max=60),
             ),
         ),
     }
@@ -100,7 +100,7 @@ def test_performance_benchmarks():
         )
 
         runtime = round(time() - start_time, 2)
-        highest_score = options[0][1]
+        highest_score = options[0].score
         num_options = len(options)
 
         if not benchmarks.highest_score_range.within_range(highest_score):
@@ -245,9 +245,11 @@ def test_get_row_options():
     assert sorted(x) == [["m", "e", "t"], ["n", "e", "t"]]
 
 
-
 def test_gen_char_groups():
-    assert list(gen_char_groups([" ", " ", "a", " ", "b", "c"])) == [[(2, "a")], [(4, "b"), (5, "c")]]
+    assert list(gen_char_groups([" ", " ", "a", " ", "b", "c"])) == [
+        [(2, "a")],
+        [(4, "b"), (5, "c")],
+    ]
 
 
 def test_gen_words():
@@ -350,43 +352,69 @@ def test_get_new_word_score():
     ]
     # fmt: on
 
-    assert get_new_word_score(b, nb) == 4
+    assert get_new_word_score(b, nb) == 5
 
 
 def test_get_new_word_score_bonus_config():
 
     # fmt: off
     b = [
-        [" ", " ", "n"],
-        [" ", " ", "o"],
-        [" ", " ", "d"],
+        [" ", " ", " ", " ", "n"],
+        [" ", " ", "a", "d", "o"],
+        [" ", " ", "b", " ", "d"],
     ]
     nb = [
-        ["p", "e", "n"],
-        [" ", " ", "o"],
-        [" ", " ", "d"],
+        ["x", "q", "p", "e", "n"],
+        [" ", " ", "a", "d", "o"],
+        [" ", " ", "b", " ", "d"],
     ]
     bonus_config = [
-        ["T", "d", "t"],
-        [" ", " ", " "],
-        [" ", "D", " "],
+        ["D", "d", "T", "t", "t"],
+        [" ", " ", " ", " ", " "],
+        [" ", "D", " ", " ", " "],
     ]
     # fmt: on
 
     # 2*e = 2 + 3 for pen = 5 * triple word = 15
-    assert get_new_word_score(b, nb, bonus_config=bonus_config) == 15
+    score, jst_strings = get_new_word_score(
+        b, nb, bonus_config=bonus_config, return_jst_strings=True
+    )
+    assert score == 236
+    assert jst_strings == [
+        "xqpen: x 8 + q 10*2 + p 3 + e 1*3 + n 1 + double word!! + triple word!!! = 210",
+        "pab: p 3 + a 1 + b 3 + triple word!!! = 21",
+        "ed: e 1*3 + d 2 = 5",
+    ]
+
 
 def test_best_options():
     b = [[" ", " ", " "], [" ", " ", " "], ["c", "a", "t"]]
 
     x = best_options(b, tiles=["e", "x", "j", "k", "z", "a", "f", "r", "n"], n=1)
-    assert x[0][0] == [[" ", " ", "j"], [" ", " ", "e"], ["c", "a", "t"]]
-    assert x[0][1] == 9
+    assert x[0].new_board == [[" ", " ", "j"], [" ", " ", "e"], ["c", "a", "t"]]
+    assert x[0].score == 10
 
+
+def test_best_options_bonus_config():
+    b = [[" ", " ", " "], [" ", " ", " "], ["c", "a", "t"]]
+
+    bonus_config = [[" ", " ", "D"], [" ", " ", " "], [" ", " ", " "]]
+
+    x = best_options(
+        b,
+        tiles=["e", "x", "j", "k", "z", "a", "f", "r", "n"],
+        n=1,
+        bonus_config=bonus_config,
+    )
+    assert x[0].new_board == [[" ", " ", "j"], [" ", " ", "e"], ["c", "a", "t"]]
+    assert x[0].score == 20
+
+
+def test_best_options_start_of_game():
     b = [[" " for _ in range(7)] for _ in range(7)]
     x = best_options(
         b, tiles=["e", "x", "j", "z", "a", "r", "n", "l", "w", "e", "a", "e"], n=5
     )
     assert len(x) == 5
-    assert x[0][0][3] == [" ", "w", "a", "x", "e", "n", " "]
-    assert x[0][1] == 15
+    assert x[0].new_board[3] == [" ", "w", "a", "x", "e", "n", " "]
+    assert x[0].score == 15

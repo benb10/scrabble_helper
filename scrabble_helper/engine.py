@@ -172,11 +172,10 @@ def gen_word_groups(board, include_indices=False):
                 yield [char for (i, char) in char_group]
 
 
-
 def gen_words(board, include_indices=False):
     for word_group in gen_word_groups(board, include_indices=False):
-        yield "".join(word_group)
-
+        if len(word_group) > 1:
+            yield "".join(word_group)
 
 
 def board_is_valid(
@@ -373,7 +372,6 @@ def get_score(chars):
     return score
 
 
-
 def get_word_score(word_group, pos_to_bonus, changed_locations):
     """Return the score and a string explaining how the score was calculated.
 
@@ -393,24 +391,29 @@ def get_word_score(word_group, pos_to_bonus, changed_locations):
     total_score = 0
     # First count the word score, including any letter bonuses:
     for pos, tile in word_group:
-        if pos not in changed_locations:
-            continue
+        tile_is_new = pos in changed_locations
 
         score = get_score(tile)
         bonus = pos_to_bonus.get(pos)
-        if bonus == "d":
+        if tile_is_new and bonus == "d":
             justification.append(f"{tile} {score}*2")
             score *= 2
-        elif bonus == "t":
-            score *= 3
+        elif tile_is_new and bonus == "t":
             justification.append(f"{tile} {score}*3")
+            score *= 3
         else:
+            # letter bonuses don't count on existing tiles
             justification.append(f"{tile} {score}")
         total_score += score
 
     # Now apply any double/triple word scores
-    all_bonuses = {pos_to_bonus[pos] for pos in changed_locations if pos in pos_to_bonus}
-    for bonus in all_bonuses:
+    all_bonuses = {
+        pos_to_bonus[pos]
+        for pos, _ in word_group
+        if pos in pos_to_bonus and pos in changed_locations
+    }
+    # sort so we add the the string in a deterministic order
+    for bonus in sorted(all_bonuses):
         if bonus == "D":
             justification.append("double word!!")
             total_score *= 2
@@ -422,7 +425,7 @@ def get_word_score(word_group, pos_to_bonus, changed_locations):
     return total_score, justification_str
 
 
-def get_new_word_score(board, new_board, bonus_config=None):
+def get_new_word_score(board, new_board, bonus_config=None, return_jst_strings=False):
     if bonus_config:
         pos_to_bonus = {
             (row_num, col_num): bonus
@@ -436,6 +439,8 @@ def get_new_word_score(board, new_board, bonus_config=None):
 
     full_score = 0
 
+    jst_strings = []
+
     for word_group in gen_word_groups(new_board, include_indices=True):
         tile_positions = {pos for pos, tile in word_group}
         if not changed_locations.intersection(tile_positions):
@@ -447,38 +452,64 @@ def get_new_word_score(board, new_board, bonus_config=None):
             # not a word
             continue
 
-        score, justification_string = get_word_score(word_group, pos_to_bonus, changed_locations)
+        score, justification_string = get_word_score(
+            word_group, pos_to_bonus, changed_locations
+        )
 
-        print(f"{word}: {justification_string}")
+        # print(f"{word}: {justification_string}")
         full_score += score
+
+        jst_strings.append(f"{word}: {justification_string}")
 
     BONUS_TILE_THRESHOLD = 7
     BONUS_AMOUNT = 50
     if len(changed_locations) >= BONUS_TILE_THRESHOLD:
-        print("!!!!!!!!!!!!!!!!!!!!!!")
-        print(f"Used over {BONUS_TILE_THRESHOLD} tiles.  {BONUS_AMOUNT} point bonus!!!!!!!!!!!!")
-        print("!!!!!!!!!!!!!!!!!!!!!!")
+        # print("!!!!!!!!!!!!!!!!!!!!!!")
+        message = f"Used over {BONUS_TILE_THRESHOLD} tiles.  {BONUS_AMOUNT} point bonus!!!!!!!!!!!!"
+        # print(message)
+        # print("!!!!!!!!!!!!!!!!!!!!!!")
         full_score += BONUS_AMOUNT
 
-    return full_score
+        jst_strings.append(message)
+
+    if return_jst_strings:
+        return full_score, jst_strings
+    else:
+        return full_score
 
 
+@dataclass
+class Option:
+    new_board: List[list]
+    score: int
+    jst_strings: List[str]  # strings explaining how we got to this score
 
-def best_options(board, tiles, n=None, get_words_fn=DEFAULT_GET_WORD_FN):
+
+def best_options(
+    board, tiles, n=None, get_words_fn=DEFAULT_GET_WORD_FN, bonus_config=None
+):
     """Return the n best board options."""
     all_board_options = get_options(board, tiles, get_words_fn=get_words_fn)
 
-    board_score_pairs = [
-        (new_board, get_new_word_score(board, new_board))
-        for new_board in all_board_options
-    ]
+    if bonus_config is None:
+        bonus_config = []
 
-    board_score_pairs.sort(key=lambda t: t[1], reverse=True)
+    options = []
+
+    for new_board in all_board_options:
+        score, jst_strings = get_new_word_score(
+            board, new_board, return_jst_strings=True, bonus_config=bonus_config
+        )
+        options.append(
+            Option(new_board=new_board, score=score, jst_strings=jst_strings)
+        )
+
+    options.sort(key=lambda option: option.score, reverse=True)
 
     if n is None:
-        return board_score_pairs
+        return options
 
-    return board_score_pairs[:n]
+    return options[:n]
 
 
 def num_tiles(board):
