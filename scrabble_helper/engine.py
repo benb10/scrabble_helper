@@ -1,26 +1,17 @@
 """
-Plan:
-for each row/column:
-filter words by max length (tiles + existing)
-filter by containing existing letter groups
-filter by issubset of tiles + existing
-generate possible new rows/columns.
-from this, generate new possible boards
-filter to valid boards (checking words indirectly created in other rows/columns)
+Functions that do the heavy lifting.  Finding potentional words to play
 """
-from scrabble_helper.words import get_english_words, get_scrabble_words
+from scrabble_helper.words import (
+    CHARS_USED_IN_CACHE, MAX_NUM_CHARS_PER_CACHE, get_cache
+)
+from scrabble_helper.bonus_configs import default_bonus_config
+
 from itertools import chain
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import List, Set, Optional, Any
-from math import ceil, floor
-from tqdm import tqdm
-
-# We want to be able to  toggle which word source we use.
-# But also have a nice default.
-# Maybe we need to rethink this.  It might be a little hard to follow
-# with DEFAULT_GET_WORD_FN being used so many times in this file.
-DEFAULT_GET_WORD_FN = get_english_words
+from math import floor
+from itertools import permutations
 
 
 def gen_rows(board):
@@ -109,22 +100,66 @@ def gen_new_rows(row, word_options, tiles):
     return new_rows
 
 
-def get_row_options(row, tiles, get_words_fn=DEFAULT_GET_WORD_FN):
+def get_char_permutations(chunks):
+    """Return a set of a strings that can be formed from the given chunks.
+
+    Only strings of len >= 2 are returned.
+    """
+
+    if len(chunks) > 15:
+        print(f"Warning more than 15 chunks {chunks}")
+    all_perms = set()
+    for word_len in range(2, len(chunks) + 1):
+        all_perms.update(
+            "".join(sub_chars) for sub_chars in permutations(chunks, word_len)
+        )
+    return all_perms
+
+
+def make_new_row(starting_pos, tiles_to_place, row):
+    next_position_generator = (
+        i for i, tile in enumerate(row) if tile == " " and i >= starting_pos
+    )
+
+    new_row = deepcopy(row)
+    # new_row = json.loads(json.dumps(row))
+
+    for tile_to_place in tiles_to_place:
+        position_to_place = next(next_position_generator)
+        new_row[position_to_place] = tile_to_place
+    return new_row
+
+
+
+def get_row_options(row, tiles, get_words_fn):
 
     existing_chars = [c for c in row if c != " "]
+
+    if not existing_chars:
+        # this is an empty row,  We don't make any suggestions here
+        return []
+
     max_length = len(tiles) + len(existing_chars)
 
     if max_length > len(row):
         max_length = len(row)
 
-    word_options = get_words_fn(max_len=max_length)
-    # word_options = {w for w in word_options if len(w) <= max_length}
+    all_tiles_set = set(tiles).union(existing_chars)
+
+    missing_chars = [char for char in CHARS_USED_IN_CACHE if char not in all_tiles_set]
+
+    missing_chars = missing_chars[:MAX_NUM_CHARS_PER_CACHE]
+
+    word_options = get_cache(missing_chars)
+
+    print(f"Missing chars {missing_chars}.  {len(word_options)} words from cache")
+
+    all_availiable_chars = tiles + existing_chars
     word_options = {
         w
         for w in word_options
         if any(existing_char in w for existing_char in existing_chars)
     }
-    all_availiable_chars = tiles + existing_chars
     word_options = {w for w in word_options if is_tile_subset(w, all_availiable_chars)}
     new_row_options = gen_new_rows(row, word_options, tiles)
 
@@ -151,7 +186,8 @@ def gen_char_groups(sequence, separator=" "):
         if val != separator:
             chunk.append((i, val))
 
-    yield chunk
+    if chunk:
+        yield chunk
 
 
 def gen_word_groups(board, include_indices=False):
@@ -178,9 +214,7 @@ def gen_words(board, include_indices=False):
             yield "".join(word_group)
 
 
-def board_is_valid(
-    board, new_board, unrecognised_words=None, get_words_fn=DEFAULT_GET_WORD_FN
-):
+def board_is_valid(board, new_board, get_words_fn, unrecognised_words=None):
     current_words = set(gen_words(board))
 
     words = get_words_fn()
@@ -206,9 +240,7 @@ def board_is_valid(
     return True
 
 
-def board_row_options(
-    r, row_options, board, unrecognised_words=None, get_words_fn=DEFAULT_GET_WORD_FN
-):
+def board_row_options(r, row_options, board, get_words_fn, unrecognised_words=None):
     board_options = []
 
     for row in row_options:
@@ -227,9 +259,7 @@ def board_row_options(
     return board_options
 
 
-def board_col_options(
-    c, col_options, board, unrecognised_words=None, get_words_fn=DEFAULT_GET_WORD_FN
-):
+def board_col_options(c, col_options, board, get_words_fn, unrecognised_words=None):
     board_options = []
 
     for col in col_options:
@@ -251,7 +281,7 @@ def board_col_options(
     return board_options
 
 
-def start_of_game_words(tiles, max_word_length, get_words_fn=DEFAULT_GET_WORD_FN):
+def start_of_game_words(tiles, max_word_length, get_words_fn):
     tiles = set(tiles)
 
     word_options = {
@@ -262,7 +292,7 @@ def start_of_game_words(tiles, max_word_length, get_words_fn=DEFAULT_GET_WORD_FN
     return word_options
 
 
-def start_of_game_options(board, tiles, get_words_fn=DEFAULT_GET_WORD_FN):
+def start_of_game_options(board, tiles, get_words_fn):
     middlest_row_index = floor(len(board) / 2)
     num_cols = len(board[middlest_row_index])
     max_word_length = min(len(tiles), num_cols)
@@ -284,7 +314,7 @@ def start_of_game_options(board, tiles, get_words_fn=DEFAULT_GET_WORD_FN):
     return board_options
 
 
-def get_options(board, tiles, get_words_fn=DEFAULT_GET_WORD_FN):
+def get_options(board, tiles, get_words_fn):
     all_squares = list(chain(*board))
     is_start_of_game = all(square == " " for square in all_squares)
 
@@ -298,6 +328,7 @@ def get_options(board, tiles, get_words_fn=DEFAULT_GET_WORD_FN):
     print("Looking for words along rows...")
 
     for r, row in enumerate(gen_rows(board)):
+        print(f"Checking {r}th row.")
         row_options = get_row_options(row, tiles, get_words_fn=get_words_fn)
 
         # validate here:
@@ -313,6 +344,7 @@ def get_options(board, tiles, get_words_fn=DEFAULT_GET_WORD_FN):
     print("Looking for words along columns...")
 
     for c, col in enumerate(gen_cols(board)):
+        print(f"Checking {c}th column.")
         col_options = get_row_options(col, tiles, get_words_fn=get_words_fn)
 
         # validate here
@@ -485,10 +517,27 @@ class Option:
     jst_strings: List[str]  # strings explaining how we got to this score
 
 
-def best_options(
-    board, tiles, n=None, get_words_fn=DEFAULT_GET_WORD_FN, bonus_config=None
-):
+def check_bonus_config(bonus_config):
+    if not isinstance(bonus_config, list):
+        raise TypeError(f"bonus_config is not a list {bonus_config}")
+
+    if not all(isinstance(x, list) for x in bonus_config):
+        raise TypeError(f"Not all entries in bonus_config are lists {bonus_config}")
+
+    all_values = set(chain(*bonus_config))
+    valid_values = {" ", "d", "D", "t", "T"}
+    if not all_values.issubset(valid_values):
+        message = (
+            "There are entries in the bonus config which are not valid.  "
+            f"Valid values: {valid_values}.  Bonus_config: {bonus_config}"
+        )
+        raise ValueError(message)
+
+
+def best_options(board, tiles, get_words_fn, n=None, bonus_config=default_bonus_config):
     """Return the n best board options."""
+    if bonus_config is not None:
+        check_bonus_config(bonus_config)
     all_board_options = get_options(board, tiles, get_words_fn=get_words_fn)
 
     if bonus_config is None:

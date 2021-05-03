@@ -5,7 +5,7 @@ from time import time
 
 from scrabble_helper.engine import best_options, get_tiles_played
 from scrabble_helper.display import pp2
-from scrabble_helper.words import get_english_words, get_scrabble_words
+from scrabble_helper.words import get_scrabble_words
 from scrabble_helper.bonus_configs import default_bonus_config
 
 
@@ -20,10 +20,10 @@ def simulate_player_turn(board, player_tiles, tile_bag, name):
         bonus_config=default_bonus_config,
     )
     best_option = options[0]
-    new_board, score = best_option
 
-    tiles_played = get_tiles_played(board, new_board)
+    tiles_played = get_tiles_played(board, best_option.new_board)
     print(f"{name} is playing tiles {sorted(tiles_played)}")
+    print(f"Scored {best_option.score} points.")
     print(f"Took {round(time() - start_time, 2)} seconds to determine options.")
 
     # update tile rack:
@@ -33,7 +33,7 @@ def simulate_player_turn(board, player_tiles, tile_bag, name):
         if tile_bag:
             player_tiles.append(tile_bag.pop(0))
 
-    return new_board, score, player_tiles, tile_bag
+    return best_option.new_board, best_option.score, player_tiles, tile_bag
 
 
 def simulate():
@@ -111,3 +111,6 @@ def simulate():
         print(f"Player A. tiles: {sorted(a_tiles)},  Score: {a_score}.")
         print(f"Player B. tiles: {sorted(b_tiles)},  Score: {b_score}.")
         print(f"{len(tile_bag)} tiles left in bag.")
+
+
+simulate()

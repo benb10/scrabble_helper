@@ -12,6 +12,7 @@ setup(
         "console_scripts": [
             "scrabble = scrabble_helper.main:main",
             "simulate = scrabble_helper.simulator:simulate",
+            "create_caches = scrabble_helper.words:create_cache_files",
         ]
     },
 )

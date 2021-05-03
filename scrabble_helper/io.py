@@ -4,6 +4,7 @@ from copy import deepcopy
 
 from scrabble_helper.engine import best_options, get_tiles_played
 from scrabble_helper.display import pp2
+from scrabble_helper.words import get_scrabble_words
 
 
 def board_files_dir():
@@ -59,7 +60,9 @@ def advise_from_json(board_name, num_options_to_provide=30):
     if all(tile == " " for tile in tile_rack):
         raise ValueError(f"tile_rack is empty: {tile_rack}")
 
-    options = best_options(board, tile_rack, n=num_options_to_provide)
+    options = best_options(
+        board, tile_rack, get_words_fn=get_scrabble_words, n=num_options_to_provide
+    )
     options.reverse()  # display best at the bottom
 
     rank_to_option = {len(options) - i: option for i, option in enumerate(options)}
@@ -69,6 +72,9 @@ def advise_from_json(board_name, num_options_to_provide=30):
         print("")
         print("==========================================================")
         print(f"Option number {rank}.  {option.score} points.")
+        print("")
+        for jst_string in option.jst_strings:
+            print(jst_string)
         pp2(board, option.new_board)
 
     print(f"Tile rack: {sorted(tile_rack)}")
@@ -87,11 +93,8 @@ def advise_from_json(board_name, num_options_to_provide=30):
         new_tile_rack.sort()
         new_tiles = input("Please enter new tiles added to rack: ")
         new_tile_rack.extend(list(new_tiles))
-        new_data = {"board": option.new_board, "tile_rack": new_tile_rack}
+        new_data = {"board": option.new_board, "tile_rack": sorted(new_tile_rack)}
         write_json(json_path, new_data)
         print(f"Finished updating {json_path}")
     else:
         print(f"Not making any changes to {json_path}")
-
-
-advise_from_json("test")
