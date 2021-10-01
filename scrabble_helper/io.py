@@ -4,7 +4,6 @@ from copy import deepcopy
 
 from scrabble_helper.engine import best_options, get_tiles_played
 from scrabble_helper.display import pp2
-from scrabble_helper.words import get_scrabble_words
 
 
 def board_files_dir():
@@ -60,9 +59,7 @@ def advise_from_json(board_name, num_options_to_provide=30):
     if all(tile == " " for tile in tile_rack):
         raise ValueError(f"tile_rack is empty: {tile_rack}")
 
-    options = best_options(
-        board, tile_rack, get_words_fn=get_scrabble_words, n=num_options_to_provide
-    )
+    options = best_options(board, tile_rack, n=num_options_to_provide)
     options.reverse()  # display best at the bottom
 
     rank_to_option = {len(options) - i: option for i, option in enumerate(options)}

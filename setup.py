@@ -3,10 +3,9 @@ from setuptools import setup
 
 setup(
     name="scrabble_helper",
-    version="0.1",
+    version="0.2",
     install_requires=[
-        "english_words>=1.0.3,<2",
-        # "tqdm>=4.60.0,<5"
+        "tqdm>=4.60.0,<5",
     ],
     entry_points={
         "console_scripts": [

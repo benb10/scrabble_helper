@@ -5,7 +5,6 @@ from time import time
 
 from scrabble_helper.engine import best_options, get_tiles_played
 from scrabble_helper.display import pp2
-from scrabble_helper.words import get_scrabble_words
 from scrabble_helper.bonus_configs import default_bonus_config
 
 
@@ -13,11 +12,7 @@ def simulate_player_turn(board, player_tiles, tile_bag, name):
     player_tiles = deepcopy(player_tiles)
     start_time = time()
     options = best_options(
-        board,
-        tiles=player_tiles,
-        n=1,
-        get_words_fn=get_scrabble_words,
-        bonus_config=default_bonus_config,
+        board, tiles=player_tiles, n=1, bonus_config=default_bonus_config
     )
     best_option = options[0]
 

@@ -2,16 +2,20 @@
 Functions that do the heavy lifting.  Finding potentional words to play
 """
 from scrabble_helper.words import (
-    CHARS_USED_IN_CACHE, MAX_NUM_CHARS_PER_CACHE, get_cache
+    CHARS_USED_IN_CACHE,
+    MAX_NUM_CHARS_PER_CACHE,
+    get_cache,
+    get_scrabble_words,
 )
+
 from scrabble_helper.bonus_configs import default_bonus_config
 
 from itertools import chain
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import List, Set, Optional, Any
 from math import floor
 from itertools import permutations
+from typing import List, Optional, Any
 
 
 def gen_rows(board):
@@ -44,14 +48,12 @@ def row_is_valid(row, new_row, availiable_tiles):
 
     for pos, char in pos_to_char_check.items():
         if new_row[pos] != char:
-            # print("a")
             return False
 
     new_char_positions = [i for i, (x, y) in enumerate(zip(row, new_row)) if x != y]
 
     if not new_char_positions:
         # this new row does not place any tiles, so it is not valid
-        # print("b")
         return False
 
     existing_char_positions = set(pos_to_char_check)
@@ -61,7 +63,6 @@ def row_is_valid(row, new_row, availiable_tiles):
     must_have_existing_range = set(range(first_new_char_pos - 1, last_new_char_pos + 2))
 
     if not any(i in must_have_existing_range for i in existing_char_positions):
-        # print("c")
         return False  # the new word does not include an existing tile
 
     new_row_chars = [c for c in new_row if c != " "]
@@ -88,11 +89,9 @@ def gen_new_rows(row, word_options, tiles):
             pos_to_char = {i: c for i, c in enumerate(new_row)}
 
             if pos_to_char.get(start_pos - 1, " ") != " ":
-                # print("a")
                 continue  # bad start
 
             if pos_to_char.get(end_pos, " ") != " ":
-                # print("b")
                 continue  # bad end
 
             if row_is_valid(row, new_row, tiles):
@@ -130,9 +129,7 @@ def make_new_row(starting_pos, tiles_to_place, row):
     return new_row
 
 
-
-def get_row_options(row, tiles, get_words_fn):
-
+def get_row_options(row, tiles):
     existing_chars = [c for c in row if c != " "]
 
     if not existing_chars:
@@ -145,11 +142,8 @@ def get_row_options(row, tiles, get_words_fn):
         max_length = len(row)
 
     all_tiles_set = set(tiles).union(existing_chars)
-
     missing_chars = [char for char in CHARS_USED_IN_CACHE if char not in all_tiles_set]
-
     missing_chars = missing_chars[:MAX_NUM_CHARS_PER_CACHE]
-
     word_options = get_cache(missing_chars)
 
     print(f"Missing chars {missing_chars}.  {len(word_options)} words from cache")
@@ -214,11 +208,9 @@ def gen_words(board, include_indices=False):
             yield "".join(word_group)
 
 
-def board_is_valid(board, new_board, get_words_fn, unrecognised_words=None):
+def board_is_valid(board, new_board, unrecognised_words=None):
     current_words = set(gen_words(board))
-
-    words = get_words_fn()
-
+    words = get_scrabble_words()
     current_invalid_words = current_words.difference(words)
 
     if current_invalid_words:
@@ -227,11 +219,8 @@ def board_is_valid(board, new_board, get_words_fn, unrecognised_words=None):
             unrecognised_words.update(current_invalid_words)
 
     starting_words = words
-
     all_valid_words = starting_words.union(current_words)
-
     new_words = set(gen_words(new_board))
-
     new_invalid_words = new_words.difference(all_valid_words)
 
     if new_invalid_words:
@@ -240,7 +229,8 @@ def board_is_valid(board, new_board, get_words_fn, unrecognised_words=None):
     return True
 
 
-def board_row_options(r, row_options, board, get_words_fn, unrecognised_words=None):
+def board_row_options(r, row_options, board):
+    """Generate new boards by inserting row_options in row index r."""
     board_options = []
 
     for row in row_options:
@@ -248,18 +238,13 @@ def board_row_options(r, row_options, board, get_words_fn, unrecognised_words=No
         new_board = deepcopy(board)
         new_board[r] = row
 
-        if board_is_valid(
-            board,
-            new_board,
-            unrecognised_words=unrecognised_words,
-            get_words_fn=get_words_fn,
-        ):
-            board_options.append(new_board)
+        board_options.append(new_board)
 
     return board_options
 
 
-def board_col_options(c, col_options, board, get_words_fn, unrecognised_words=None):
+def board_col_options(c, col_options, board):
+    """Generate new boards by inserting col_options in column index c."""
     board_options = []
 
     for col in col_options:
@@ -270,36 +255,28 @@ def board_col_options(c, col_options, board, get_words_fn, unrecognised_words=No
         # switch it back to a list of rows:
         new_board = list(gen_cols(cols))
 
-        if board_is_valid(
-            board,
-            new_board,
-            unrecognised_words=unrecognised_words,
-            get_words_fn=get_words_fn,
-        ):
-            board_options.append(new_board)
+        board_options.append(new_board)
 
     return board_options
 
 
-def start_of_game_words(tiles, max_word_length, get_words_fn):
+def start_of_game_words(tiles, max_word_length):
     tiles = set(tiles)
 
     word_options = {
         word
-        for word in get_words_fn()
+        for word in get_scrabble_words()
         if len(word) <= max_word_length and is_tile_subset(word, tiles)
     }
     return word_options
 
 
-def start_of_game_options(board, tiles, get_words_fn):
+def start_of_game_options(board, tiles):
     middlest_row_index = floor(len(board) / 2)
     num_cols = len(board[middlest_row_index])
     max_word_length = min(len(tiles), num_cols)
 
-    word_options = start_of_game_words(
-        tiles, max_word_length, get_words_fn=get_words_fn
-    )
+    word_options = start_of_game_words(tiles, max_word_length)
 
     board_options = []
 
@@ -314,14 +291,14 @@ def start_of_game_options(board, tiles, get_words_fn):
     return board_options
 
 
-def get_options(board, tiles, get_words_fn):
+def get_options(board, tiles):
     all_squares = list(chain(*board))
     is_start_of_game = all(square == " " for square in all_squares)
 
     unrecognised_words = set()
 
     if is_start_of_game:
-        return start_of_game_options(board, tiles, get_words_fn=get_words_fn)
+        return start_of_game_options(board, tiles)
 
     all_board_options = []
 
@@ -329,33 +306,29 @@ def get_options(board, tiles, get_words_fn):
 
     for r, row in enumerate(gen_rows(board)):
         print(f"Checking {r}th row.")
-        row_options = get_row_options(row, tiles, get_words_fn=get_words_fn)
+        row_options = get_row_options(row, tiles)
 
         # validate here:
-        board_options = board_row_options(
-            r,
-            row_options,
-            board,
-            unrecognised_words=unrecognised_words,
-            get_words_fn=get_words_fn,
-        )
+        board_options = board_row_options(r, row_options, board)
         all_board_options.extend(board_options)
 
     print("Looking for words along columns...")
 
     for c, col in enumerate(gen_cols(board)):
         print(f"Checking {c}th column.")
-        col_options = get_row_options(col, tiles, get_words_fn=get_words_fn)
+        col_options = get_row_options(col, tiles)
 
         # validate here
-        board_options = board_col_options(
-            c,
-            col_options,
-            board,
-            unrecognised_words=unrecognised_words,
-            get_words_fn=get_words_fn,
-        )
+        board_options = board_col_options(c, col_options, board)
         all_board_options.extend(board_options)
+
+    all_board_options = [
+        option
+        for option in all_board_options
+        if board_is_valid(
+            board, new_board=option, unrecognised_words=unrecognised_words
+        )
+    ]
 
     print(f"Unrecognised words in existing_board: {sorted(unrecognised_words)}")
 
@@ -488,7 +461,6 @@ def get_new_word_score(board, new_board, bonus_config=None, return_jst_strings=F
             word_group, pos_to_bonus, changed_locations
         )
 
-        # print(f"{word}: {justification_string}")
         full_score += score
 
         jst_strings.append(f"{word}: {justification_string}")
@@ -496,10 +468,7 @@ def get_new_word_score(board, new_board, bonus_config=None, return_jst_strings=F
     BONUS_TILE_THRESHOLD = 7
     BONUS_AMOUNT = 50
     if len(changed_locations) >= BONUS_TILE_THRESHOLD:
-        # print("!!!!!!!!!!!!!!!!!!!!!!")
         message = f"Used over {BONUS_TILE_THRESHOLD} tiles.  {BONUS_AMOUNT} point bonus!!!!!!!!!!!!"
-        # print(message)
-        # print("!!!!!!!!!!!!!!!!!!!!!!")
         full_score += BONUS_AMOUNT
 
         jst_strings.append(message)
@@ -534,11 +503,11 @@ def check_bonus_config(bonus_config):
         raise ValueError(message)
 
 
-def best_options(board, tiles, get_words_fn, n=None, bonus_config=default_bonus_config):
+def best_options(board, tiles, n=None, bonus_config=default_bonus_config):
     """Return the n best board options."""
     if bonus_config is not None:
         check_bonus_config(bonus_config)
-    all_board_options = get_options(board, tiles, get_words_fn=get_words_fn)
+    all_board_options = get_options(board, tiles)
 
     if bonus_config is None:
         bonus_config = []

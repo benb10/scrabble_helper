@@ -1,16 +1,13 @@
 """This file has functions for getting word lists, which are
 used to determine possible moves.
 """
-from english_words import english_words_lower_alpha_set
-from typing import List, Set, Optional, Any
+import os
+import json
 from time import time
 from tqdm import tqdm
 from collections import defaultdict
 from functools import lru_cache
-import os
-
-import json
-
+from pathlib import Path
 
 from scrabble_helper.blacklist import blacklist
 
@@ -23,24 +20,6 @@ def filter_to_az(words):
     # remove anything with non letter chars eg. &
     lower_case_chars = get_az()
     return {word for word in words if set(word).issubset(lower_case_chars)}
-
-
-@lru_cache(maxsize=1024)
-def get_english_words(max_len=None):
-    """We use the python lib english_words https://pypi.org/project/english-words/.
-
-    from english_words import english_words_lower_alpha_set as words
-    At the time of writing, it has around 25,000 words
-    """
-    words = english_words_lower_alpha_set
-    words = words.difference(blacklist)
-    words = filter_to_az(words)
-
-    if max_len is not None:
-        words = {w for w in words if len(w) <= max_len}
-
-    print(f"Produced {len(words)} words")
-    return words
 
 
 def word_sources_dir():
@@ -111,8 +90,6 @@ def divide_by_contained_chars(words):
 
 
 def divide_by_missing_char(words):
-    """
-    """
     missing_char_to_words = defaultdict(set)
     for word in words:
         az = get_az()
@@ -135,8 +112,10 @@ def write_json(path, data):
 WW_CACHE_PREFIX = "words_without_cache_"
 CACHES_DIR = os.path.join(os.path.dirname(__file__), "caches")
 # Use a few of the most common chars
-CHARS_USED_IN_CACHE = ["e", "s", "i", "a", "r", "n", "t", "o", "l", "c"]
+CHARS_USED_IN_CACHE = ["e", "s", "i", "a", "r", "n", "t", "o", "l", "c", "u"]
 MAX_NUM_CHARS_PER_CACHE = 5
+
+# 11 chars, MAX_NUM_CHARS_PER_CACHE = 5 => ~ 7GB of cache files in 6 mins
 
 
 def get_words_without_caches():
@@ -155,6 +134,11 @@ def get_cache(missing_chars):
     return set(words)
 
 
+def remove_cache_files():
+    for file in os.listdir(CACHES_DIR):
+        os.remove(os.path.join(CACHES_DIR, file))
+
+
 def create_cache_files():
     """
     This will create many cache files in the directory CACHES_DIR.
@@ -162,10 +146,9 @@ def create_cache_files():
     These will be used later on so we can get much faster
     word suggestions.
     """
+    # TODO test this function
     start_time = time()
-    for file in os.listdir(CACHES_DIR):
-        os.remove(os.path.join(CACHES_DIR, file))
-    from pathlib import Path
+    remove_cache_files()
 
     Path(CACHES_DIR).mkdir(parents=True, exist_ok=True)
     words = get_scrabble_words()
