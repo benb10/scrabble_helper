@@ -1,5 +1,5 @@
 """
-Functions that do the heavy lifting.  Finding potentional words to play
+Functions that do the heavy lifting.  Finding potentional words to play.
 """
 from scrabble_helper.words import (
     CHARS_USED_IN_CACHE,

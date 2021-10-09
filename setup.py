@@ -5,7 +5,7 @@ setup(
     name="scrabble_helper",
     version="0.2",
     install_requires=[
-        "tqdm>=4.60.0,<5",
+        "tqdm~=4.60",
     ],
     entry_points={
         "console_scripts": [
