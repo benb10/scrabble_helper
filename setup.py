@@ -13,5 +13,5 @@ setup(
             "simulate = scrabble_helper.simulator:simulate",
             "create_caches = scrabble_helper.words:create_cache_files",
         ]
-    },
+    },#
 )
