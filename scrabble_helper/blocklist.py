@@ -1,10 +1,10 @@
 """
 There seems to be many short words in the library
 that aren't legitimate scrabble words.
-This is a blacklist we can build up manually to
+This is a blocklist we can build up manually to
 exclude these words.
 """
-blacklist = {
+blocklist = {
     "b",
     "c",
     "d",

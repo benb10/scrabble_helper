@@ -1,33 +1,34 @@
 """This file has functions for getting word lists, which are
 used to determine possible moves.
 """
-import os
 import json
-from time import time
-from tqdm import tqdm
+import os
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
+from time import time
 
-from scrabble_helper.blacklist import blacklist
+from tqdm import tqdm
+
+from scrabble_helper.blocklist import blocklist
 
 
-def get_az():
+def get_az() -> set[str]:
     return {chr(i) for i in range(ord("a"), ord("z") + 1)}
 
 
-def filter_to_az(words):
-    # remove anything with non letter chars eg. &
+def filter_to_az(words: set[str]) -> set[str]:
+    # remove anything with non letter chars e.g. &
     lower_case_chars = get_az()
     return {word for word in words if set(word).issubset(lower_case_chars)}
 
 
-def word_sources_dir():
+def word_sources_dir() -> str:
     return os.path.join(os.path.dirname(__file__), "word_sources")
 
 
 @lru_cache(maxsize=1024)
-def get_scrabble_words(max_len=None):
+def get_scrabble_words(max_len: int | None = None) -> set[str]:
     """This reads in a word list which has 279,496 scrabble words.
 
     https://boardgames.stackexchange.com/questions/38366/latest-collins-scrabble-words-list-in-text-file
@@ -45,7 +46,7 @@ def get_scrabble_words(max_len=None):
     # user lower case
     words = {word.lower() for word in words}
     words = filter_to_az(words)
-    words = words.difference(blacklist)
+    words = words.difference(blocklist)
 
     if max_len is not None:
         words = {w for w in words if len(w) <= max_len}
@@ -54,17 +55,18 @@ def get_scrabble_words(max_len=None):
     return words
 
 
-def divide_by_len(words):
+def divide_by_len(words: set[str]) -> dict[int, list[str]]:
     """Helper function to check word lists."""
-    len_to_words = defaultdict(list)
+    len_to_words: dict[int, list[str]] = defaultdict(list)
     for word in sorted(words):
         len_to_words[len(word)].append(word)
     return len_to_words
 
 
-def get_missing_letter_stats(words, missing_chars=["e", "t", "a", "o", "i", "n"]):
-    """Print some info about how the length can be cut down.
-    """
+def get_missing_letter_stats(
+    words: set[str], missing_chars=("e", "t", "a", "o", "i", "n")
+) -> None:
+    """Print some info about how the length can be cut down."""
     print(f"There are {len(words)} words")
 
     for missing_char in missing_chars:
@@ -72,10 +74,10 @@ def get_missing_letter_stats(words, missing_chars=["e", "t", "a", "o", "i", "n"]
         print(f"Words without {missing_char}: {sub_len}")
 
 
-def divide_by_contained_chars(words):
+def divide_by_contained_chars(words: set[str]) -> dict[str, set[str]]:
     """Return a dict mapping a char to all the words containing the char
 
-    eg.
+    e.g.
     {
         "a": {"cat", "ant", "grass", "able",...},
         "b": {"able", "bow",...},
@@ -89,7 +91,7 @@ def divide_by_contained_chars(words):
     return char_to_words
 
 
-def divide_by_missing_char(words):
+def divide_by_missing_char(words: set[str]) -> dict[str, set[str]]:
     missing_char_to_words = defaultdict(set)
     for word in words:
         az = get_az()
@@ -99,12 +101,12 @@ def divide_by_missing_char(words):
     return missing_char_to_words
 
 
-def read_json(path):
+def read_json(path: str) -> dict:
     with open(path, "r") as f:
         return json.loads(f.read())
 
 
-def write_json(path, data):
+def write_json(path: str, data) -> None:
     with open(path, "w") as f:
         f.write(json.dumps(data))
 
@@ -115,42 +117,43 @@ CACHES_DIR = os.path.join(os.path.dirname(__file__), "caches")
 CHARS_USED_IN_CACHE = ["e", "s", "i", "a", "r", "n", "t", "o", "l", "c", "u"]
 MAX_NUM_CHARS_PER_CACHE = 5
 
-# 11 chars, MAX_NUM_CHARS_PER_CACHE = 5 => ~ 7GB of cache files in 6 mins
+# 11 chars, MAX_NUM_CHARS_PER_CACHE = 5 => ~ 7GB of cache files in 6 minutes
 
 
-def get_words_without_caches():
-    files = os.listdir("caches")
+def get_words_without_caches() -> list[str]:
+    files = os.listdir(CACHES_DIR)
     cache_names = [file[len(WW_CACHE_PREFIX) :] for file in files]
     return sorted(cache_names)
 
 
-def get_dir_size(dir):
-    return sum(os.path.getsize(os.path.join(dir, f)) for f in os.listdir(dir))
+def get_dir_size(directory: str) -> int:
+    return sum(
+        os.path.getsize(os.path.join(directory, f)) for f in os.listdir(directory)
+    )
 
 
-def get_cache(missing_chars):
+def get_cache(missing_chars: list[str]) -> set[str]:
     missing_char_str = "".join(sorted(set(missing_chars)))
     words = read_json(os.path.join(CACHES_DIR, WW_CACHE_PREFIX + missing_char_str))
     return set(words)
 
 
-def remove_cache_files():
+def remove_cache_files() -> None:
     for file in os.listdir(CACHES_DIR):
         os.remove(os.path.join(CACHES_DIR, file))
 
 
-def create_cache_files():
+def create_cache_files() -> None:
     """
     This will create many cache files in the directory CACHES_DIR.
 
-    These will be used later on so we can get much faster
+    These will be used later on, so that we can get much faster
     word suggestions.
     """
     # TODO test this function
     start_time = time()
-    remove_cache_files()
-
     Path(CACHES_DIR).mkdir(parents=True, exist_ok=True)
+    remove_cache_files()
     words = get_scrabble_words()
     write_json(f"{CACHES_DIR}/{WW_CACHE_PREFIX}", list(words))
 
@@ -176,12 +179,12 @@ def create_cache_files():
                 write_json(f"{CACHES_DIR}/{WW_CACHE_PREFIX}{new_key}", new_words)
 
     cache_size = get_dir_size(CACHES_DIR)
-    cache_size_gb = round(cache_size / 10 ** 9, 3)
+    cache_size_gb = round(cache_size / 10**9, 3)
     print(f"finished in {time() - start_time} seconds")
     print(f"Created {len(os.listdir(CACHES_DIR))} cache files ({cache_size_gb} GB).")
 
 
-def get_letter_frequencies(words):
+def get_letter_frequencies(words: set[str]) -> dict[str, int]:
     """
     Last output:
 

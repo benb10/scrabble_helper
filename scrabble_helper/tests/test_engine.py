@@ -1,25 +1,22 @@
-import pytest
-
-from scrabble_helper.words import get_scrabble_words
-
 from scrabble_helper.engine import (
-    gen_cols,
-    is_tile_subset,
-    row_is_valid,
-    gen_new_rows,
-    get_row_options,
-    gen_char_groups,
-    gen_words,
+    best_options,
+    board_col_options,
     board_is_valid,
     board_row_options,
-    board_col_options,
-    start_of_game_words,
-    get_options,
-    get_score,
-    get_new_word_score,
-    best_options,
+    gen_char_groups,
+    gen_cols,
+    gen_new_rows,
+    gen_words,
     get_char_permutations,
+    get_new_word_score,
+    get_options,
+    get_row_options,
+    get_score,
+    is_tile_subset,
+    row_is_valid,
+    start_of_game_words,
 )
+from scrabble_helper.words import get_scrabble_words
 
 
 def test_gen_cols():
@@ -57,14 +54,16 @@ def test_row_is_valid():
 
 def test_gen_new_rows():
     x = gen_new_rows([" ", " ", "t"], ["net", "tea", "met"], tiles=["e", "n", "m", "a"])
+
     assert sorted(x) == [["m", "e", "t"], ["n", "e", "t"]]
 
 
 def test_get_row_options():
     r = [" ", " ", " ", " ", " ", " ", " ", "d", " ", " ", "d", "a", "c", "c", "a"]
-
     tiles = ["a", "a", "b", "b", "c", "c", "d"]
+
     x = get_row_options(r, tiles)
+
     assert [
         " ",
         " ",
@@ -82,7 +81,6 @@ def test_get_row_options():
         "c",
         "a",
     ] in x
-
     r = [" ", " ", " ", " ", " ", " ", " ", "e", " ", "a", "w", "a", "y", " ", " "]
 
     x = get_row_options(r, tiles=["a", "a", "a", "c", "e", "i", "v"])
@@ -112,6 +110,7 @@ def test_get_row_options():
         [" ", " ", "l", " ", " ", " ", " ", " "],
         tiles=["a", "i", "o", "p", "r", "t", "y"],
     )
+
     bad_word = "lotto"
     # demonstrate that this is in words:
     assert bad_word in get_scrabble_words()
@@ -155,11 +154,11 @@ def test_gen_char_groups():
 
 def test_gen_words():
     b = [["a", "b", "c"], [" ", " ", "c"]]
+
     assert list(gen_words(b)) == ["abc", "cc"]
 
 
 def test_board_is_valid():
-
     # fmt: off
     orig = [
         [" ", " ", "n"],
@@ -177,14 +176,16 @@ def test_board_is_valid():
         [" ", " ", "o"],
         [" ", " ", "d"],
     ]
+    # fmt: on
+
     assert board_is_valid(orig, b1) is False
     assert board_is_valid(orig, b2) is True
-    # fmt: on
 
 
 def test_board_row_options():
     b = [[" ", " ", "n"], [" ", " ", "o"], [" ", " ", "d"]]
     x = board_row_options(2, row_options=[["o", "d", "d"], ["f", "e", "d"]], board=b)
+
     assert x == [
         [[" ", " ", "n"], [" ", " ", "o"], ["o", "d", "d"]],
         [[" ", " ", "n"], [" ", " ", "o"], ["f", "e", "d"]],
@@ -194,6 +195,7 @@ def test_board_row_options():
 def test_board_col_options():
     b = [[" ", " ", " "], [" ", " ", " "], ["d", "o", "g"]]
     x = board_col_options(0, col_options=[["n", "o", "d"], ["f", "e", "d"]], board=b)
+
     assert x == [
         [["n", " ", " "], ["o", " ", " "], ["d", "o", "g"]],
         [["f", " ", " "], ["e", " ", " "], ["d", "o", "g"]],
@@ -224,15 +226,18 @@ def test_get_options():
         [" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " "],
         [" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " "],
     ]
-
     tiles = ["e", "h", "k", "l", "o", "t", "z"]
+
     options = get_options(b, tiles)
-    # In a previous bug, this would give no options because of the 2 letter words
+
+    # In a previous bug, this would give no options because of the 2-letter words
     # already on the board
     assert len(options) == 207, len(options)
 
     b = [[" ", " ", " "], [" ", " ", " "], ["c", "a", "t"]]
+
     x = get_options(b, ["a", "e", "h", "l", "n"])
+
     assert len(x) == 20, len(x)
 
 
@@ -241,7 +246,6 @@ def test_get_score():
 
 
 def test_get_new_word_score():
-
     # fmt: off
     b = [
         [" ", " ", "n"],
@@ -259,7 +263,6 @@ def test_get_new_word_score():
 
 
 def test_get_new_word_score_bonus_config():
-
     # fmt: off
     b = [
         [" ", " ", " ", " ", "n"],
@@ -282,6 +285,7 @@ def test_get_new_word_score_bonus_config():
     score, jst_strings = get_new_word_score(
         b, nb, bonus_config=bonus_config, return_jst_strings=True
     )
+
     assert score == 236
     assert jst_strings == [
         "xqpen: x 8 + q 10*2 + p 3 + e 1*3 + n 1 + double word!! + triple word!!! = 210",
@@ -296,13 +300,13 @@ def test_best_options():
     x = best_options(
         b, tiles=["e", "x", "j", "k", "z", "a", "f", "r", "n"], n=1, bonus_config=None
     )
+
     assert x[0].new_board == [[" ", "z", " "], [" ", "e", " "], ["c", "a", "t"]]
     assert x[0].score == 12
 
 
 def test_best_options_bonus_config():
     b = [[" ", " ", " "], [" ", " ", " "], ["c", "a", "t"]]
-
     bonus_config = [[" ", " ", "D"], [" ", " ", " "], [" ", " ", " "]]
 
     x = best_options(
@@ -311,15 +315,18 @@ def test_best_options_bonus_config():
         n=1,
         bonus_config=bonus_config,
     )
+
     assert x[0].new_board == [[" ", " ", "j"], [" ", " ", "e"], ["c", "a", "t"]]
     assert x[0].score == 20
 
 
 def test_best_options_start_of_game():
     b = [[" " for _ in range(7)] for _ in range(7)]
+
     x = best_options(
         b, tiles=["e", "x", "j", "z", "a", "r", "n", "l", "w", "e", "a", "e"], n=5
     )
+
     assert len(x) == 5
     assert x[0].new_board[3] == ["w", "r", "a", "x", "l", "e", " "]
     assert x[0].score == 40

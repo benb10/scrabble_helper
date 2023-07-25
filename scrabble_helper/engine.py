@@ -1,21 +1,19 @@
 """
-Functions that do the heavy lifting.  Finding potentional words to play.
+Functions that do the heavy lifting.  Finding potential words to play.
 """
+from copy import deepcopy
+from dataclasses import dataclass
+from itertools import chain, permutations
+from math import floor
+from typing import List
+
+from scrabble_helper.bonus_configs import default_bonus_config
 from scrabble_helper.words import (
     CHARS_USED_IN_CACHE,
     MAX_NUM_CHARS_PER_CACHE,
     get_cache,
     get_scrabble_words,
 )
-
-from scrabble_helper.bonus_configs import default_bonus_config
-
-from itertools import chain
-from copy import deepcopy
-from dataclasses import dataclass
-from math import floor
-from itertools import permutations
-from typing import List, Optional, Any
 
 
 def gen_rows(board):
@@ -43,7 +41,7 @@ def is_tile_subset(word, tiles):
     return True
 
 
-def row_is_valid(row, new_row, availiable_tiles):
+def row_is_valid(row, new_row, available_tiles):
     pos_to_char_check = {i: char for i, char in enumerate(row) if char != " "}
 
     for pos, char in pos_to_char_check.items():
@@ -67,9 +65,9 @@ def row_is_valid(row, new_row, availiable_tiles):
 
     new_row_chars = [c for c in new_row if c != " "]
     old_row_chars = [c for c in row if c != " "]
-    availiabe_chars = old_row_chars + availiable_tiles
-    if not is_tile_subset(new_row_chars, availiabe_chars):
-        # eg. there is only one 'w' availiable, and we are using it twice
+    available_chars = old_row_chars + available_tiles
+    if not is_tile_subset(new_row_chars, available_chars):
+        # e.g. there is only one 'w' available, and we are using it twice
         return False
 
     return True
@@ -136,11 +134,6 @@ def get_row_options(row, tiles):
         # this is an empty row,  We don't make any suggestions here
         return []
 
-    max_length = len(tiles) + len(existing_chars)
-
-    if max_length > len(row):
-        max_length = len(row)
-
     all_tiles_set = set(tiles).union(existing_chars)
     missing_chars = [char for char in CHARS_USED_IN_CACHE if char not in all_tiles_set]
     missing_chars = missing_chars[:MAX_NUM_CHARS_PER_CACHE]
@@ -148,23 +141,16 @@ def get_row_options(row, tiles):
 
     print(f"Missing chars {missing_chars}.  {len(word_options)} words from cache")
 
-    all_availiable_chars = tiles + existing_chars
+    all_available_chars = tiles + existing_chars
     word_options = {
         w
         for w in word_options
         if any(existing_char in w for existing_char in existing_chars)
     }
-    word_options = {w for w in word_options if is_tile_subset(w, all_availiable_chars)}
+    word_options = {w for w in word_options if is_tile_subset(w, all_available_chars)}
     new_row_options = gen_new_rows(row, word_options, tiles)
 
     return new_row_options
-
-
-@dataclass
-class BoardOption:
-    baord: List[List[str]]
-    new_tile_positions: Optional[Any]
-    word: str
 
 
 def gen_char_groups(sequence, separator=" "):
@@ -202,7 +188,7 @@ def gen_word_groups(board, include_indices=False):
                 yield [char for (i, char) in char_group]
 
 
-def gen_words(board, include_indices=False):
+def gen_words(board):
     for word_group in gen_word_groups(board, include_indices=False):
         if len(word_group) > 1:
             yield "".join(word_group)
@@ -272,8 +258,8 @@ def start_of_game_words(tiles, max_word_length):
 
 
 def start_of_game_options(board, tiles):
-    middlest_row_index = floor(len(board) / 2)
-    num_cols = len(board[middlest_row_index])
+    middle_row_index = floor(len(board) / 2)
+    num_cols = len(board[middle_row_index])
     max_word_length = min(len(tiles), num_cols)
 
     word_options = start_of_game_words(tiles, max_word_length)
@@ -285,7 +271,7 @@ def start_of_game_options(board, tiles):
         # just put the word roughly in the middle of the most middle row:
         start_col_index = floor((num_cols - len(word)) / 2)
         end_col_index = start_col_index + len(word)
-        new_board[middlest_row_index][start_col_index:end_col_index] = list(word)
+        new_board[middle_row_index][start_col_index:end_col_index] = list(word)
         board_options.append(new_board)
 
     return board_options
@@ -340,7 +326,7 @@ def get_changed_locations(board, new_board):
     for row_index, row in enumerate(board):
         for col_index, tile in enumerate(row):
             if tile != new_board[row_index][col_index]:
-                yield (row_index, col_index)
+                yield row_index, col_index
 
 
 def get_score(chars):
@@ -388,7 +374,7 @@ def get_word_score(word_group, pos_to_bonus, changed_locations):
     the bonus values mean:
     "d": double letter score
     "D": double word score
-    "t": triple letter socre
+    "t": triple letter score
     "T": triple word score
     " ": no bonus
     """
@@ -417,7 +403,7 @@ def get_word_score(word_group, pos_to_bonus, changed_locations):
         for pos, _ in word_group
         if pos in pos_to_bonus and pos in changed_locations
     }
-    # sort so we add the the string in a deterministic order
+    # sort so we add the string in a deterministic order
     for bonus in sorted(all_bonuses):
         if bonus == "D":
             justification.append("double word!!")
@@ -449,7 +435,7 @@ def get_new_word_score(board, new_board, bonus_config=None, return_jst_strings=F
     for word_group in gen_word_groups(new_board, include_indices=True):
         tile_positions = {pos for pos, tile in word_group}
         if not changed_locations.intersection(tile_positions):
-            # This word does not invole any new tiles
+            # This word does not involve any new tiles
             continue
 
         word = "".join(char for pos, char in word_group)
@@ -465,11 +451,11 @@ def get_new_word_score(board, new_board, bonus_config=None, return_jst_strings=F
 
         jst_strings.append(f"{word}: {justification_string}")
 
-    BONUS_TILE_THRESHOLD = 7
-    BONUS_AMOUNT = 50
-    if len(changed_locations) >= BONUS_TILE_THRESHOLD:
-        message = f"Used over {BONUS_TILE_THRESHOLD} tiles.  {BONUS_AMOUNT} point bonus!!!!!!!!!!!!"
-        full_score += BONUS_AMOUNT
+    bonus_tile_threshold = 7
+    bonus_amount = 50
+    if len(changed_locations) >= bonus_tile_threshold:
+        message = f"Used over {bonus_tile_threshold} tiles.  {bonus_amount} point bonus!!!!!!!!!!!!"
+        full_score += bonus_amount
 
         jst_strings.append(message)
 

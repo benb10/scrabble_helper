@@ -1,11 +1,11 @@
-from random import shuffle
 from copy import deepcopy
 from itertools import chain
+from random import shuffle
 from time import time
 
-from scrabble_helper.engine import best_options, get_tiles_played
-from scrabble_helper.display import pp2
 from scrabble_helper.bonus_configs import default_bonus_config
+from scrabble_helper.display import pp2
+from scrabble_helper.engine import best_options, get_tiles_played
 
 
 def simulate_player_turn(board, player_tiles, tile_bag, name):
@@ -65,7 +65,7 @@ def simulate():
     }
     assert (
         sum(tile_frequency.values()) == 98
-    )  # mean to be 100 with 2 blanks.  Blank tiles not immplemented yet.
+    )  # mean to be 100 with 2 blanks.  Blank tiles not implemented yet.
 
     tile_bag = list(
         chain.from_iterable(

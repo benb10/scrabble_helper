@@ -2,8 +2,8 @@ import json
 import os
 from copy import deepcopy
 
-from scrabble_helper.engine import best_options, get_tiles_played
 from scrabble_helper.display import pp2
+from scrabble_helper.engine import best_options, get_tiles_played
 
 
 def board_files_dir():

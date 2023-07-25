@@ -1,7 +1,7 @@
 from scrabble_helper.engine import get_changed_locations
 
 
-class bcolors:
+class Colours:
     # https://stackoverflow.com/questions/287871/how-to-print-colored-text-to-the-terminal
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
@@ -15,15 +15,15 @@ class bcolors:
 
 
 """
-print(f"{bcolors.HEADER}qwertyuiop{bcolors.ENDC}")
-print(f"{bcolors.OKBLUE}qwertyuiop{bcolors.ENDC}")
-print(f"{bcolors.OKCYAN}qwertyuiop{bcolors.ENDC}")
-print(f"{bcolors.OKGREEN}qwertyuiop{bcolors.ENDC}")
-print(f"{bcolors.WARNING}qwertyuiop{bcolors.ENDC}")
-print(f"{bcolors.FAIL}qwertyuiop{bcolors.ENDC}")
-print(f"{bcolors.ENDC}qwertyuiop{bcolors.ENDC}")
-print(f"{bcolors.BOLD}qwertyuiop{bcolors.ENDC}")
-print(f"{bcolors.UNDERLINE}qwertyuiop{bcolors.ENDC}")
+print(f"{Colours.HEADER}qwertyuiop{Colours.ENDC}")
+print(f"{Colours.OKBLUE}qwertyuiop{Colours.ENDC}")
+print(f"{Colours.OKCYAN}qwertyuiop{Colours.ENDC}")
+print(f"{Colours.OKGREEN}qwertyuiop{Colours.ENDC}")
+print(f"{Colours.WARNING}qwertyuiop{Colours.ENDC}")
+print(f"{Colours.FAIL}qwertyuiop{Colours.ENDC}")
+print(f"{Colours.ENDC}qwertyuiop{Colours.ENDC}")
+print(f"{Colours.BOLD}qwertyuiop{Colours.ENDC}")
+print(f"{Colours.UNDERLINE}qwertyuiop{Colours.ENDC}")
 print("regular")
 """
 
@@ -65,7 +65,7 @@ def pp2(board, new_board):
         print(f"{str(r+1).ljust(max_num_digits)}|", end="")
         for c, tile in enumerate(row):
             if (r, c) in changed_locations:
-                text = f"{bcolors.OKGREEN}{tile}{bcolors.ENDC}"
+                text = f"{Colours.OKGREEN}{tile}{Colours.ENDC}"
             else:
                 text = tile
             print(f" {text}", end="")

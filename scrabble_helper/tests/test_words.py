@@ -14,7 +14,7 @@ def test_get_scrabble_words():
         all_chars.update(word)
     assert all_chars == lower_case_chars
 
-    # May need to update this sometime.  Just check we are in the expected
+    # May need to update this sometimes.  Just check we are in the expected
     # ballpark:
     assert 270_000 < len(x) < 290_000
 
